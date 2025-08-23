@@ -1,0 +1,2 @@
+ADMINS_ID = [728522506]
+ADMINS_USERNAMES = ['zenokan']
