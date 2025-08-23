@@ -5,7 +5,7 @@ dotenv.load_dotenv()
 TOKEN=os.getenv("TOKEN")
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -14,12 +14,17 @@ from aiogram.fsm.state import State, StatesGroup
 
 from tools.Buttons import InlineButtons
 from tools import messages as msgs
+from tools.api import Api
+
+from config import API_URL
 
 import admin_list as admins
 import asyncio
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
+api = Api(API_URL)
+
 
 main_menu = InlineButtons(
     namesList=[
@@ -79,6 +84,12 @@ async def process_request(msg: Message, state: FSMContext):
         'username': '@'+msg.from_user.username,
         'request': user_request
     }
+    resp = api.post('addrequest/', {
+        'tg_id': data['id'],
+        'username': data['username'],
+        'request': data['request']
+    })
+    print('## ', resp)
     print(data['username'], ' | ', data['id'])
     
     successed_sends = 0
