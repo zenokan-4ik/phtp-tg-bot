@@ -11,6 +11,3 @@ class Api:
     def get(self, endpoint: str, data: dict):
         response = requests.get(self.url+endpoint, data)
         return response.content.decode()
-    
-api = Api('http://127.0.0.1:8000/api/')
-print(api.get('getrequests', {}))
