@@ -21,6 +21,10 @@ from config import API_URL
 import admin_list as admins
 import asyncio
 
+from aiogram.types import BufferedInputFile
+from io import BytesIO
+from aiogram.types import InputMediaPhoto
+
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 api = Api(API_URL)
@@ -74,14 +78,34 @@ async def process_callback(callback_query: CallbackQuery, state: FSMContext):
             await send_msg(callback_query.message, msgs.REQUEST)
             await state.set_state(RequestState.waiting_for_request)
 
-from io import BytesIO
-import aiohttp
+from aiogram.types import InputMediaPhoto
+import asyncio
+
+# Dictionary to track media groups
+media_groups = {}
+
+from aiogram.types import InputMediaPhoto
+import asyncio
+
+# Dictionary to track media groups
+media_groups = {}
+
+# Add this at the top of your file with other global variables
+processed_media_groups = set()
 
 @dp.message(RequestState.waiting_for_request)
 async def process_request(msg: Message, state: FSMContext):
-    user_request = msg.text or msg.caption or ""
-    
-    # Process the request
+    # Skip processing if this is a media group message without caption/text
+    if msg.media_group_id and not (msg.text or msg.caption):
+        if msg.media_group_id in processed_media_groups:
+            return
+        # Mark this media group as processed
+        processed_media_groups.add(msg.media_group_id)
+        # Set a timer to remove the media group ID after a while
+        asyncio.create_task(remove_media_group_id(msg.media_group_id))
+        return
+
+    user_request = msg.text or msg.caption
     data = {
         'id': msg.from_user.id,
         'username': '@' + msg.from_user.username if msg.from_user.username else str(msg.from_user.id),
@@ -89,22 +113,27 @@ async def process_request(msg: Message, state: FSMContext):
     }
 
     files = {}
-    photo_data = []
+    photo_bytes = None
 
+    # Handle only the highest resolution photo
     if msg.photo:
-        photos = msg.photo
-        largest_photo = photos[-1]
+        # Get the highest resolution photo (last in the array)
+        largest_photo = msg.photo[-1]
         file_info = await bot.get_file(largest_photo.file_id)
         downloaded_file = await bot.download_file(file_info.file_path)
+        photo_bytes = downloaded_file.read()
         
-        photo_data.append({
-            'file_id': largest_photo.file_id,
-            'bytes': downloaded_file.read()
-        })
-        
+        # Reset file pointer for API upload
         downloaded_file.seek(0)
         files['photo'] = ('photo.jpg', downloaded_file)
+        
+        # If this is part of a media group, mark it as processed
+        if msg.media_group_id:
+            processed_media_groups.add(msg.media_group_id)
+            # Set a timer to remove the media group ID after a while
+            asyncio.create_task(remove_media_group_id(msg.media_group_id))
 
+    # API request
     resp = api.post('addrequest/', data={
         'tg_id': data['id'],
         'username': data['username'],
@@ -119,10 +148,12 @@ async def process_request(msg: Message, state: FSMContext):
 
     for admin_id in admins.ADMINS_ID:
         try:
-            if photo_data:
+            if photo_bytes:
+                # Create BufferedInputFile from bytes
+                input_file = BufferedInputFile(photo_bytes, filename='photo.jpg')
                 await bot.send_photo(
                     admin_id,
-                    photo=photo_data[0]['bytes'],
+                    photo=input_file,
                     caption=admin_message_text,
                     parse_mode='HTML'
                 )
@@ -143,6 +174,12 @@ async def process_request(msg: Message, state: FSMContext):
     
     await state.clear()
     await msg.answer("Чем еще могу помочь?", reply_markup=main_menu())
+
+# Add this helper function to clean up media group IDs
+async def remove_media_group_id(media_group_id):
+    await asyncio.sleep(30)  # Wait 30 seconds
+    if media_group_id in processed_media_groups:
+        processed_media_groups.remove(media_group_id)
 
 async def main() -> None:
     global bot

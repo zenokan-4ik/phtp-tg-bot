@@ -9,8 +9,10 @@ class Api:
             response = requests.post(self.url + endpoint, data=data, files=files)
         else:
             response = requests.post(self.url + endpoint, data=data)
+        print('request status code ', response.status_code)
         return response.content.decode()
     
     def get(self, endpoint: str, data: dict):
         response = requests.get(self.url + endpoint, data=data)
+        print('request status code ', response.status_code)
         return response.content.decode()
