@@ -105,7 +105,7 @@ async def process_request(msg: Message, state: FSMContext):
         asyncio.create_task(remove_media_group_id(msg.media_group_id))
         return
 
-    user_request = msg.text or msg.caption
+    user_request = msg.text or msg.caption or ""
     data = {
         'id': msg.from_user.id,
         'username': '@' + msg.from_user.username if msg.from_user.username else str(msg.from_user.id),
@@ -125,7 +125,7 @@ async def process_request(msg: Message, state: FSMContext):
         
         # Reset file pointer for API upload
         downloaded_file.seek(0)
-        files['photo'] = ('photo.jpg', downloaded_file)
+        files['photo_0'] = ('photo.jpg', downloaded_file)
         
         # If this is part of a media group, mark it as processed
         if msg.media_group_id:
