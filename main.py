@@ -81,27 +81,21 @@ async def process_callback(callback_query: CallbackQuery, state: FSMContext):
 from aiogram.types import InputMediaPhoto
 import asyncio
 
-# Dictionary to track media groups
 media_groups = {}
 
 from aiogram.types import InputMediaPhoto
 import asyncio
 
-# Dictionary to track media groups
 media_groups = {}
 
-# Add this at the top of your file with other global variables
 processed_media_groups = set()
 
 @dp.message(RequestState.waiting_for_request)
 async def process_request(msg: Message, state: FSMContext):
-    # Skip processing if this is a media group message without caption/text
     if msg.media_group_id and not (msg.text or msg.caption):
         if msg.media_group_id in processed_media_groups:
             return
-        # Mark this media group as processed
         processed_media_groups.add(msg.media_group_id)
-        # Set a timer to remove the media group ID after a while
         asyncio.create_task(remove_media_group_id(msg.media_group_id))
         return
 
@@ -115,25 +109,19 @@ async def process_request(msg: Message, state: FSMContext):
     files = {}
     photo_bytes = None
 
-    # Handle only the highest resolution photo
     if msg.photo:
-        # Get the highest resolution photo (last in the array)
         largest_photo = msg.photo[-1]
         file_info = await bot.get_file(largest_photo.file_id)
         downloaded_file = await bot.download_file(file_info.file_path)
         photo_bytes = downloaded_file.read()
         
-        # Reset file pointer for API upload
         downloaded_file.seek(0)
         files['photo_0'] = ('photo.jpg', downloaded_file)
         
-        # If this is part of a media group, mark it as processed
         if msg.media_group_id:
             processed_media_groups.add(msg.media_group_id)
-            # Set a timer to remove the media group ID after a while
             asyncio.create_task(remove_media_group_id(msg.media_group_id))
 
-    # API request
     resp = api.post('addrequest/', data={
         'tg_id': data['id'],
         'username': data['username'],
@@ -149,7 +137,6 @@ async def process_request(msg: Message, state: FSMContext):
     for admin_id in admins.ADMINS_ID:
         try:
             if photo_bytes:
-                # Create BufferedInputFile from bytes
                 input_file = BufferedInputFile(photo_bytes, filename='photo.jpg')
                 await bot.send_photo(
                     admin_id,
@@ -175,9 +162,8 @@ async def process_request(msg: Message, state: FSMContext):
     await state.clear()
     await msg.answer("Чем еще могу помочь?", reply_markup=main_menu())
 
-# Add this helper function to clean up media group IDs
 async def remove_media_group_id(media_group_id):
-    await asyncio.sleep(30)  # Wait 30 seconds
+    await asyncio.sleep(30)
     if media_group_id in processed_media_groups:
         processed_media_groups.remove(media_group_id)
 
