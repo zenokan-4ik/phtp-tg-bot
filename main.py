@@ -71,12 +71,11 @@ async def start_command(msg: Message):
 async def process_callback(callback_query: CallbackQuery, state: FSMContext):
     await callback_query.answer()
     print(callback_query.data, ' answered')
-    match callback_query.data:
-        case 'contacts': 
-            await send_msg(callback_query.message, msgs.CONTACTS)
-        case 'request':
-            await send_msg(callback_query.message, msgs.REQUEST)
-            await state.set_state(RequestState.waiting_for_request)
+    if callback_query.data == 'contacts':
+        await send_msg(callback_query.message, msgs.CONTACTS)
+    if callback_query.data == 'request':
+        await send_msg(callback_query.message, msgs.REQUEST)
+        await state.set_state(RequestState.waiting_for_request)
 
 from aiogram.types import InputMediaPhoto
 import asyncio
